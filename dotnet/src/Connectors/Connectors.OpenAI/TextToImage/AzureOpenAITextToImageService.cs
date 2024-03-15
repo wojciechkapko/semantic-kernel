@@ -65,6 +65,7 @@ public sealed class AzureOpenAITextToImageService : ITextToImageService
         {
             this.AddAttribute(AIServiceExtensions.ModelIdKey, modelId);
         }
+
         this.AddAttribute(DeploymentNameKey, deploymentName);
 
         this._logger = loggerFactory?.CreateLogger(typeof(AzureOpenAITextToImageService)) ?? NullLogger.Instance;
@@ -85,6 +86,8 @@ public sealed class AzureOpenAITextToImageService : ITextToImageService
         string description,
         int width,
         int height,
+        string? quality = null,
+        string? style = null,
         Kernel? kernel = null,
         CancellationToken cancellationToken = default)
     {
@@ -98,6 +101,20 @@ public sealed class AzureOpenAITextToImageService : ITextToImageService
             _ => throw new NotSupportedException("Dall-E 3 can only generate images of the following sizes 1024x1024, 1792x1024, or 1024x1792")
         };
 
+        var chosenQuality = (quality) switch
+        {
+            "standard" => ImageGenerationQuality.Standard,
+            "hd" => ImageGenerationQuality.Hd,
+            _ => ImageGenerationQuality.Standard
+        };
+
+        var chosenStyle = (style) switch
+        {
+            "natural" => ImageGenerationStyle.Natural,
+            "vivid" => ImageGenerationStyle.Vivid,
+            _ => ImageGenerationStyle.Vivid
+        };
+
         Response<ImageGenerations> imageGenerations;
         try
         {
@@ -107,6 +124,8 @@ public sealed class AzureOpenAITextToImageService : ITextToImageService
                     DeploymentName = this._deploymentName,
                     Prompt = description,
                     Size = size,
+                    Quality = chosenQuality,
+                    Style = chosenStyle
                 }, cancellationToken).ConfigureAwait(false);
         }
         catch (RequestFailedException e)

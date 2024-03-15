@@ -69,7 +69,7 @@ public sealed class OpenAITextToImageService : ITextToImageService
     public IReadOnlyDictionary<string, object?> Attributes => this._core.Attributes;
 
     /// <inheritdoc/>
-    public Task<string> GenerateImageAsync(string description, int width, int height, Kernel? kernel = null, CancellationToken cancellationToken = default)
+    public Task<string> GenerateImageAsync(string description, int width, int height, string? quality = "standard", string? style = "vivid", Kernel? kernel = null, CancellationToken cancellationToken = default)
     {
         Verify.NotNull(description);
         if (width != height || width != 256 && width != 512 && width != 1024)
@@ -77,12 +77,23 @@ public sealed class OpenAITextToImageService : ITextToImageService
             throw new ArgumentOutOfRangeException(nameof(width), width, "OpenAI can generate only square images of size 256x256, 512x512, or 1024x1024.");
         }
 
-        return this.GenerateImageAsync(description, width, height, "url", x => x.Url, cancellationToken);
+        if (quality is null || (quality != "standard" && quality != "hd"))
+        {
+            throw new ArgumentOutOfRangeException(nameof(quality), quality, "Quality must be either 'standard' or 'hd'.");
+        }
+
+        if (style is null || (style != "vivid" && style != "natural"))
+        {
+            throw new ArgumentOutOfRangeException(nameof(style), style, "Style must be either 'vivid' or 'natural'.");
+        }
+
+        return this.GenerateImageAsync(description, width, height, quality, style, "url", x => x.Url, cancellationToken);
     }
 
     private async Task<string> GenerateImageAsync(
         string description,
         int width, int height,
+        string quality, string style,
         string format, Func<TextToImageResponse.Image, string> extractResponse,
         CancellationToken cancellationToken)
     {
@@ -94,6 +105,8 @@ public sealed class OpenAITextToImageService : ITextToImageService
             Size = $"{width}x{height}",
             Count = 1,
             Format = format,
+            Quality = quality,
+            Style = style
         });
 
         var list = await this._core.ExecuteImageGenerationRequestAsync(OpenAIEndpoint, requestBody, extractResponse!, cancellationToken).ConfigureAwait(false);
